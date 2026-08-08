@@ -1,0 +1,58 @@
+zerops:
+  - setup: api
+    build:
+      base: nodejs@22
+      buildCommands:
+        - cd apps/api && npm ci
+        - cd apps/api && npm run build
+      deployFiles:
+        - apps/api/dist/~
+        - apps/api/node_modules/~
+        - apps/api/package.json
+      cache:
+        - apps/api/node_modules
+    run:
+      base: nodejs@22
+      ports:
+        - port: 3001
+          httpSupport: true
+      envVariables:
+        NODE_ENV: production
+        DATABASE_URL: ${db_connectionString}
+        REDIS_HOST: ${cache_hostname}
+        REDIS_PORT: ${cache_port}
+        NATS_URL: nats://${broker_hostname}:${broker_port}
+        ES_URL: http://${search_hostname}:${search_port}
+      start: node dist/server.js
+      readinessCheck:
+        httpGet:
+          port: 3001
+          path: /health
+
+  - setup: web
+    build:
+      base: nodejs@22
+      buildCommands:
+        - cd apps/web && npm ci
+        - cd apps/web && npm run build
+      deployFiles:
+        - apps/web/.next/~
+        - apps/web/node_modules/~
+        - apps/web/package.json
+        - apps/web/public/~
+        - apps/web/next.config.ts
+      cache:
+        - apps/web/node_modules
+    run:
+      base: nodejs@22
+      ports:
+        - port: 3000
+          httpSupport: true
+      envVariables:
+        NODE_ENV: production
+        NEXT_PUBLIC_API_URL: FILL_IN_AFTER_ZEROPS_SETUP
+      start: node_modules/.bin/next start
+      readinessCheck:
+        httpGet:
+          port: 3000
+          path: /
