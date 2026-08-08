@@ -5,10 +5,9 @@ zerops:
       buildCommands:
         - cd apps/api && npm ci
         - cd apps/api && npm run build
+        - cp apps/api/src/db/schema.sql apps/api/dist/db/schema.sql
       deployFiles:
-        - apps/api/dist/~
-        - apps/api/node_modules/~
-        - apps/api/package.json
+        - apps/api/~
       cache:
         - apps/api/node_modules
     run:
@@ -36,11 +35,7 @@ zerops:
         - cd apps/web && npm ci
         - cd apps/web && npm run build
       deployFiles:
-        - apps/web/.next/~
-        - apps/web/node_modules/~
-        - apps/web/package.json
-        - apps/web/public/~
-        - apps/web/next.config.ts
+        - apps/web/~
       cache:
         - apps/web/node_modules
     run:
@@ -51,7 +46,7 @@ zerops:
       envVariables:
         NODE_ENV: production
         NEXT_PUBLIC_API_URL: https://api-2c50.prg1.zerops.app
-      start: node_modules/.bin/next start
+      start: node_modules/.bin/next start -p 3000
       readinessCheck:
         httpGet:
           port: 3000
