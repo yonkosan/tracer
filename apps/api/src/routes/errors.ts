@@ -50,22 +50,27 @@ export async function errorRoutes(app: FastifyInstance) {
     '/api/errors/:id',
     { preHandler: verifyToken },
     async (req, reply) => {
-      const { rows } = await db.query(
-        `SELECT e.*, p.user_id FROM errors e
+      // auth check in WHERE — avoids untyped spread of rows[0]
+      const { rows } = await db.query<{
+        id: string; fingerprint: string; message: string; error_type: string;
+        stack_trace: string | null; status: string; count: number;
+        first_seen: string; last_seen: string; metadata: unknown
+      }>(
+        `SELECT e.id, e.fingerprint, e.message, e.error_type, e.stack_trace,
+                e.status, e.count, e.first_seen, e.last_seen, e.metadata
+         FROM errors e
          JOIN projects p ON p.id = e.project_id
-         WHERE e.id = $1`,
-        [req.params.id]
+         WHERE e.id = $1 AND p.user_id = $2`,
+        [req.params.id, req.userId]
       )
       if (!rows[0]) return reply.code(404).send({ error: 'error not found' })
-      if (rows[0].user_id !== req.userId) return reply.code(403).send({ error: 'forbidden' })
 
       const { rows: occurrences } = await db.query(
         'SELECT id, url, user_agent, created_at, metadata FROM error_occurrences WHERE error_id = $1 ORDER BY created_at DESC LIMIT 20',
         [req.params.id]
       )
 
-      const { user_id: _, ...error } = rows[0]
-      return { ...error, occurrences }
+      return { ...rows[0], occurrences }
     }
   )
 
@@ -128,7 +133,7 @@ export async function errorRoutes(app: FastifyInstance) {
         size: 20,
       })
 
-      return result.hits.hits.map((h) => ({ id: h._id, ...h._source }))
+      return result.hits.hits.map((h) => ({ id: h._id, ...(h._source as Record<string, unknown>) }))
     }
   )
 }
