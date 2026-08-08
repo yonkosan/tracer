@@ -33,7 +33,7 @@ export default function DemoPage() {
 
     window.addEventListener('unhandledrejection', (e) => {
       const msg = e.reason instanceof Error ? e.reason.message : String(e.reason)
-      window.onerror!(msg, undefined, undefined, undefined, e.reason instanceof Error ? e.reason : null)
+      window.onerror!(msg, undefined, undefined, undefined, e.reason instanceof Error ? e.reason : undefined)
     })
   }, [])
 
