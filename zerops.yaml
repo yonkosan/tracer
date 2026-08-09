@@ -6,12 +6,14 @@ zerops:
         - cd apps/api && npm ci
         - cd apps/api && npm run build
         - cp apps/api/src/db/schema.sql apps/api/dist/db/schema.sql
-        - mkdir -p deploy/api
-        - cp -r apps/api/dist/. deploy/api/
-        - cp -r apps/api/node_modules deploy/api/node_modules
-        - cp apps/api/package.json deploy/api/package.json
+        - cd apps/api && npm prune --omit=dev
+        - cp -r apps/api/dist dist
+        - cp -r apps/api/node_modules node_modules
+        - cp apps/api/package.json package.json
       deployFiles:
-        - deploy/api/~
+        - dist
+        - node_modules
+        - package.json
       cache:
         - apps/api/node_modules
     run:
@@ -19,7 +21,18 @@ zerops:
       ports:
         - port: 3001
           httpSupport: true
-      start: node server.js
+      envVariables:
+        NODE_ENV: production
+        DB_HOST: ${db_hostname}
+        DB_PORT: ${db_port}
+        DB_USER: ${db_user}
+        DB_PASSWORD: ${db_password}
+        DB_NAME: ${db_dbName}
+        REDIS_HOST: ${cache_hostname}
+        REDIS_PORT: ${cache_port}
+        NATS_URL: nats://${broker_hostname}:${broker_port}
+        ES_URL: http://${search_hostname}:${search_port}
+      start: node dist/server.js
       readinessCheck:
         httpGet:
           port: 3001
@@ -31,14 +44,18 @@ zerops:
       buildCommands:
         - cd apps/web && npm ci
         - cd apps/web && npm run build
-        - mkdir -p deploy/web
-        - cp -r apps/web/.next deploy/web/.next
-        - cp -r apps/web/public deploy/web/public
-        - cp -r apps/web/node_modules deploy/web/node_modules
-        - cp apps/web/package.json deploy/web/package.json
-        - cp apps/web/next.config.ts deploy/web/next.config.ts
+        - cd apps/web && npm prune --omit=dev
+        - cp -r apps/web/.next .next
+        - cp -r apps/web/public public
+        - cp -r apps/web/node_modules node_modules
+        - cp apps/web/package.json package.json
+        - cp apps/web/next.config.ts next.config.ts
       deployFiles:
-        - deploy/web/~
+        - .next
+        - public
+        - node_modules
+        - package.json
+        - next.config.ts
       cache:
         - apps/web/node_modules
     run:
