@@ -23,15 +23,17 @@ zerops:
           httpSupport: true
       envVariables:
         NODE_ENV: production
-        DB_HOST: ${db_hostname}
+        DB_HOST: db
         DB_PORT: ${db_port}
         DB_USER: ${db_user}
         DB_PASSWORD: ${db_password}
         DB_NAME: ${db_dbName}
-        REDIS_HOST: ${cache_hostname}
+        REDIS_HOST: cache
         REDIS_PORT: ${cache_port}
-        NATS_URL: nats://${broker_hostname}:${broker_port}
-        ES_URL: http://${search_hostname}:${search_port}
+        NATS_URL: nats://broker:${broker_port}
+        ES_URL: http://search:${search_port}
+        ES_USER: elastic
+        ES_PASSWORD: ${search_password}
       start: node dist/server.js
       readinessCheck:
         httpGet:

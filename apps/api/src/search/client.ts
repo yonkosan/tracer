@@ -4,7 +4,12 @@ if (!process.env.ES_URL) {
   throw new Error('ES_URL is not set')
 }
 
-export const es = new Client({ node: process.env.ES_URL })
+export const es = new Client({
+  node: process.env.ES_URL,
+  auth: process.env.ES_USER
+    ? { username: process.env.ES_USER, password: process.env.ES_PASSWORD ?? '' }
+    : undefined,
+})
 
 export async function ensureIndex() {
   const exists = await es.indices.exists({ index: 'errors' })
