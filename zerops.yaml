@@ -35,6 +35,7 @@ zerops:
         DB_NAME: ${db_dbName}
         REDIS_HOST: cache
         REDIS_PORT: ${cache_port}
+        REDIS_PASSWORD: ${cache_password}
         NATS_URL: nats://${broker_user}:${broker_password}@broker:${broker_port}
         ES_URL: http://search:${search_port}
         ES_USER: elastic

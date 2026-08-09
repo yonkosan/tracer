@@ -7,6 +7,7 @@ if (!process.env.REDIS_HOST) {
 export const cache = new Redis({
   host: process.env.REDIS_HOST,
   port: Number(process.env.REDIS_PORT) || 6379,
+  password: process.env.REDIS_PASSWORD || undefined,
   lazyConnect: true,
   maxRetriesPerRequest: 3,
 })
