@@ -74,7 +74,7 @@ zerops:
           httpSupport: true
       envVariables:
         NODE_ENV: production
-        NEXT_PUBLIC_API_URL: https://api-2c50.prg1.zerops.app
+        NEXT_PUBLIC_API_URL: https://api-2c50-3001.prg1.zerops.app
       start: node_modules/.bin/next start apps/web -p 3000
       healthCheck:
         httpGet:
