@@ -1,5 +1,13 @@
 @import "tailwindcss";
 
+input, select, textarea {
+  color: rgb(244 244 245); /* zinc-100 */
+}
+
+* {
+  box-sizing: border-box;
+}
+
 :root {
   --background: #ffffff;
   --foreground: #171717;

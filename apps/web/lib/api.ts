@@ -1,4 +1,4 @@
-const BASE = process.env.NEXT_PUBLIC_API_URL ?? ''
+const BASE = process.env.NEXT_PUBLIC_API_URL ?? 'https://api-2c50-3001.prg1.zerops.app'
 
 export async function apiFetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
   const token = typeof window !== 'undefined' ? localStorage.getItem('tracer_token') : null
