@@ -23,6 +23,22 @@ interface ErrorDetail {
   occurrences: Occurrence[]
 }
 
+function timeAgo(iso: string) {
+  const diff = Date.now() - new Date(iso).getTime()
+  const mins = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const h = Math.floor(mins / 60)
+  if (h < 24) return `${h}h ago`
+  return `${Math.floor(h / 24)}d ago`
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  open: 'bg-red-500/10 text-red-400 border-red-500/20',
+  resolved: 'bg-green-500/10 text-green-400 border-green-500/20',
+  ignored: 'bg-zinc-800 text-zinc-500 border-zinc-700',
+}
+
 export default function ErrorDetailPage({
   params,
 }: {
@@ -35,6 +51,7 @@ export default function ErrorDetailPage({
   const [analyzing, setAnalyzing] = useState(false)
   const [analyzeError, setAnalyzeError] = useState('')
   const [updating, setUpdating] = useState(false)
+  const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     if (!getToken()) { router.push('/'); return }
@@ -46,13 +63,17 @@ export default function ErrorDetailPage({
     setAnalysis('')
     setAnalyzeError('')
     try {
-      const { analysis: text } = await apiFetch<{ analysis: string }>(`/api/errors/${errorId}/analyze`, {
-        method: 'POST',
-      })
+      const { analysis: text } = await apiFetch<{ analysis: string }>(
+        `/api/errors/${errorId}/analyze`, { method: 'POST' }
+      )
       setAnalysis(text)
     } catch (err) {
       const msg = (err as Error).message
-      setAnalyzeError(msg.includes('NO_OPENAI_KEY') ? 'Add an OpenAI key in project settings to use AI analysis.' : msg)
+      setAnalyzeError(
+        msg.includes('NO_OPENAI_KEY')
+          ? 'Add an OpenAI key in project Settings to enable AI analysis.'
+          : msg
+      )
     } finally {
       setAnalyzing(false)
     }
@@ -72,80 +93,138 @@ export default function ErrorDetailPage({
     }
   }
 
-  if (!error) return <div className="min-h-screen flex items-center justify-center text-zinc-500 text-sm">Loading…</div>
+  function copyStack() {
+    if (error?.stack_trace) {
+      navigator.clipboard.writeText(error.stack_trace)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    }
+  }
+
+  if (!error) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
+        <p className="text-zinc-500 text-sm">Loading…</p>
+      </div>
+    )
+  }
 
   return (
-    <div className="min-h-screen">
-      <header className="border-b border-zinc-800 px-6 py-4 flex items-center gap-4">
-        <button onClick={() => router.push(`/dashboard/${projectId}`)} className="text-zinc-500 hover:text-zinc-300 text-sm">
-          ← Errors
-        </button>
-        <span className="font-semibold text-sm truncate">{error.error_type}</span>
-        <div className="flex gap-2 ml-auto">
-          {['open', 'resolved', 'ignored'].map((s) => (
-            <button
-              key={s}
-              onClick={() => updateStatus(s)}
-              disabled={updating || error.status === s}
-              className={`text-xs px-2 py-1 rounded border transition-colors ${
-                error.status === s
-                  ? 'border-zinc-600 text-zinc-300 bg-zinc-800'
-                  : 'border-zinc-800 text-zinc-500 hover:border-zinc-600 hover:text-zinc-300'
-              }`}
-            >
-              {s}
-            </button>
-          ))}
+    <div className="min-h-screen bg-zinc-950">
+      <header className="border-b border-zinc-800/60 bg-zinc-950/80 backdrop-blur sticky top-0 z-10">
+        <div className="max-w-4xl mx-auto px-6 h-14 flex items-center gap-3">
+          <button onClick={() => router.push(`/dashboard/${projectId}`)}
+            className="flex items-center gap-1.5 text-zinc-500 hover:text-zinc-200 text-sm transition-colors">
+            <span className="text-base leading-none">←</span>
+            Errors
+          </button>
+          <span className="text-zinc-700">/</span>
+          <span className="text-zinc-500 text-sm font-mono">{error.error_type}</span>
+          <div className="ml-auto flex gap-2">
+            {['open', 'resolved', 'ignored'].map((s) => (
+              <button key={s} onClick={() => updateStatus(s)} disabled={updating || error.status === s}
+                className={`text-xs px-2.5 py-1.5 rounded-lg border font-medium transition-colors ${
+                  error.status === s
+                    ? STATUS_STYLES[s]
+                    : 'border-zinc-800 text-zinc-500 hover:border-zinc-700 hover:text-zinc-300'
+                }`}>
+                {s.charAt(0).toUpperCase() + s.slice(1)}
+              </button>
+            ))}
+          </div>
         </div>
       </header>
 
-      <main className="max-w-3xl mx-auto px-6 py-8 space-y-6">
-        <div>
-          <p className="font-mono text-zinc-200 text-sm leading-relaxed">{error.message}</p>
-          <p className="text-xs text-zinc-500 mt-2">
-            First seen {new Date(error.first_seen).toLocaleString()} · {error.count} occurrence{error.count !== 1 ? 's' : ''}
-          </p>
+      <main className="max-w-4xl mx-auto px-6 py-6 space-y-5">
+        {/* Error header */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-xs font-mono font-semibold bg-orange-500/10 text-orange-400 px-2 py-0.5 rounded">
+              {error.error_type}
+            </span>
+            <span className={`text-xs font-medium px-2 py-0.5 rounded border ${STATUS_STYLES[error.status]}`}>
+              {error.status}
+            </span>
+          </div>
+          <p className="text-zinc-100 font-mono text-sm leading-relaxed mb-3">{error.message}</p>
+          <div className="flex items-center gap-4 text-xs text-zinc-500">
+            <span><span className="text-zinc-400 font-semibold">{error.count}</span> occurrence{error.count !== 1 ? 's' : ''}</span>
+            <span>·</span>
+            <span>First seen {timeAgo(error.first_seen)}</span>
+            <span>·</span>
+            <span>Last seen {timeAgo(error.last_seen)}</span>
+          </div>
         </div>
 
+        {/* Stack trace */}
         {error.stack_trace && (
-          <div>
-            <p className="text-xs text-zinc-500 mb-2 font-medium uppercase tracking-wider">Stack trace</p>
-            <pre className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-xs font-mono text-zinc-300 overflow-x-auto whitespace-pre-wrap leading-relaxed">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+            <div className="flex items-center justify-between px-4 py-2.5 border-b border-zinc-800">
+              <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">Stack Trace</span>
+              <button onClick={copyStack}
+                className="text-xs text-zinc-500 hover:text-zinc-300 transition-colors">
+                {copied ? '✓ Copied' : 'Copy'}
+              </button>
+            </div>
+            <pre className="p-4 text-xs font-mono text-zinc-300 overflow-x-auto leading-relaxed whitespace-pre-wrap">
               {error.stack_trace}
             </pre>
           </div>
         )}
 
-        <div>
-          <p className="text-xs text-zinc-500 mb-2 font-medium uppercase tracking-wider">AI Analysis</p>
-          {analysis ? (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 text-sm text-zinc-300 leading-relaxed">
-              {analysis}
-            </div>
-          ) : (
-            <div>
-              <button
-                onClick={analyze}
-                disabled={analyzing}
-                className="bg-zinc-800 hover:bg-zinc-700 border border-zinc-700 text-zinc-200 text-sm rounded-md px-4 py-2 disabled:opacity-50"
-              >
-                {analyzing ? 'Analyzing…' : 'Analyze with AI →'}
-              </button>
-              {analyzeError && <p className="text-red-400 text-xs mt-2">{analyzeError}</p>}
-            </div>
-          )}
+        {/* AI Analysis */}
+        <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-zinc-800">
+            <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">AI Analysis</span>
+          </div>
+          <div className="p-4">
+            {analysis ? (
+              <div className="text-sm text-zinc-200 leading-relaxed">{analysis}</div>
+            ) : (
+              <div>
+                <p className="text-sm text-zinc-500 mb-3">
+                  Let AI explain what caused this error and how to fix it.
+                </p>
+                <button onClick={analyze} disabled={analyzing}
+                  className="flex items-center gap-2 bg-indigo-500 hover:bg-indigo-400 text-white text-sm font-medium px-4 py-2 rounded-lg transition-colors disabled:opacity-60">
+                  {analyzing ? (
+                    <><span className="animate-pulse">●</span> Analyzing…</>
+                  ) : (
+                    <>✨ Analyze with AI</>
+                  )}
+                </button>
+                {analyzeError && (
+                  <p className="text-red-400 text-xs mt-2">{analyzeError}</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
+        {/* Occurrences */}
         {error.occurrences.length > 0 && (
-          <div>
-            <p className="text-xs text-zinc-500 mb-2 font-medium uppercase tracking-wider">
-              Recent occurrences
-            </p>
-            <div className="flex flex-col gap-1">
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-zinc-800">
+              <span className="text-xs font-medium text-zinc-400 uppercase tracking-wider">
+                Recent Occurrences
+              </span>
+            </div>
+            <div className="divide-y divide-zinc-800/60">
               {error.occurrences.map((o) => (
-                <div key={o.id} className="bg-zinc-900 border border-zinc-800 rounded-md px-3 py-2 text-xs text-zinc-400">
-                  <span>{new Date(o.created_at).toLocaleString()}</span>
-                  {o.url && <span className="ml-3 text-zinc-600 truncate">{o.url}</span>}
+                <div key={o.id} className="px-4 py-3 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    {o.url && (
+                      <p className="text-xs text-zinc-400 truncate mb-0.5 font-mono">{o.url}</p>
+                    )}
+                    {o.user_agent && (
+                      <p className="text-xs text-zinc-600 truncate">{o.user_agent}</p>
+                    )}
+                  </div>
+                  <span className="text-xs text-zinc-500 flex-shrink-0">
+                    {new Date(o.created_at).toLocaleString('en-US', {
+                      month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit'
+                    })}
+                  </span>
                 </div>
               ))}
             </div>

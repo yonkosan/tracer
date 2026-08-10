@@ -40,7 +40,15 @@ export async function projectRoutes(app: FastifyInstance) {
 
   app.get('/api/projects', { preHandler: verifyToken }, async (req) => {
     const { rows } = await db.query(
-      'SELECT id, name, api_key, created_at FROM projects WHERE user_id = $1 ORDER BY created_at DESC',
+      `SELECT p.id, p.name, p.api_key, p.created_at,
+              COUNT(e.id) FILTER (WHERE e.status = 'open') AS open_errors,
+              COUNT(e.id) AS total_errors,
+              MAX(e.last_seen) AS last_error_at
+       FROM projects p
+       LEFT JOIN errors e ON e.project_id = p.id
+       WHERE p.user_id = $1
+       GROUP BY p.id
+       ORDER BY p.created_at DESC`,
       [(req as { userId: string }).userId]
     )
     return rows

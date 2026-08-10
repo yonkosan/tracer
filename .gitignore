@@ -2,3 +2,6 @@ analysis.md
 .env
 node_modules/
 plan.md
+.mcp.json
+CLAUDE.md
+.zcp/
